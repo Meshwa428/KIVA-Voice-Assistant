@@ -12,17 +12,21 @@ class VoiceAssistant:
     """
     The main voice assistant class that orchestrates STT, LLM, and TTS.
     """
-    def __init__(self, model: str = "llama2", on_transcript=None, on_llm_token=None, request_approval=None):
+    def __init__(self, model: str = "llama2", on_final_transcript=None, on_partial_transcript=None, on_llm_token=None, request_approval=None):
         """
         Initializes the VoiceAssistant.
         """
-        self.stt_client = STTClient()
+        self.stt_client = STTClient(
+            on_final_transcript=self._on_final_transcript,
+            on_partial_transcript=self._on_partial_transcript
+        )
         self.tts_client = TTSClient(on_character=self.handle_llm_token)
         self.agent_executor = create_voice_agent()
         self.model = model
         self.loop = asyncio.get_event_loop()
         self.stt_thread = None
-        self.on_transcript = on_transcript
+        self.on_final_transcript = on_final_transcript
+        self.on_partial_transcript = on_partial_transcript
         self.on_llm_token = on_llm_token
         self.request_approval = request_approval
         print("Voice Assistant with LangChain agent initialized.")
@@ -34,13 +38,20 @@ class VoiceAssistant:
         if self.on_llm_token:
             self.on_llm_token(token)
 
+    def _on_partial_transcript(self, text: str):
+        """
+        Thread-safe callback for when a partial transcript is received.
+        """
+        if self.on_partial_transcript:
+            self.on_partial_transcript(text)
+
     async def handle_transcript(self, text: str):
         """
         Handles the transcribed text from the STT client.
         This function is called as a callback from a separate thread.
         """
-        if self.on_transcript:
-            self.on_transcript(text)
+        if self.on_final_transcript:
+            self.on_final_transcript(text)
 
         if text.lower().startswith(("hey assistant", "assistant")):
             command = text.lower().replace("hey assistant", "").replace("assistant", "").strip()
@@ -103,7 +114,7 @@ class VoiceAssistant:
         """
         print("Starting Voice Assistant...")
 
-        self.stt_thread = threading.Thread(target=self.stt_client.start, args=(self._on_final_transcript,))
+        self.stt_thread = threading.Thread(target=self.stt_client.start)
         self.stt_thread.daemon = True
         self.stt_thread.start()
 

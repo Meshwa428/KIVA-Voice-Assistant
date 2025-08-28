@@ -40,7 +40,8 @@ class VoiceAssistantTUI(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.assistant = VoiceAssistant(
-            on_transcript=self.handle_transcript,
+            on_final_transcript=self.handle_final_transcript,
+            on_partial_transcript=self.handle_partial_transcript,
             on_llm_token=self.handle_llm_token,
             request_approval=self.request_approval
         )
@@ -73,16 +74,22 @@ class VoiceAssistantTUI(App):
         result = await self.push_screen_wait(dialog)
         return result
 
-    def handle_transcript(self, text: str):
+    def handle_partial_transcript(self, text: str):
         """
-        Callback to handle the transcript from the assistant.
+        Callback to handle partial transcripts from the assistant.
+        """
+        self.call_from_thread(self.query_one("#transcript_display").update, f"Live: {text}")
+
+    def handle_final_transcript(self, text: str):
+        """
+        Callback to handle the final transcript from the assistant.
         This is called from a different thread.
         """
         # Clear the LLM display for the new response
         self.llm_full_response = ""
         self.call_from_thread(self.query_one("#llm_display").update, "")
 
-        self.call_from_thread(self.query_one("#transcript_display").update, text)
+        self.call_from_thread(self.query_one("#transcript_display").update, f"Final: {text}")
 
     def handle_llm_token(self, token: str):
         """
