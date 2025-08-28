@@ -1,16 +1,6 @@
 RealtimeSTT
 RealtimeTTS
 ollama
-langchain
-langchain-ollama
 textual
 rich
-fastapi
-uvicorn
 aiohttp
-pywinauto
-pyautogui
-playwright
-spotipy
-PyGithub
-mcp

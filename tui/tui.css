@@ -25,27 +25,3 @@
 #transcript_display, #llm_display {
     padding: 1;
 }
-
-#dialog {
-    align: center middle;
-    width: 80%;
-    height: 80%;
-    border: thick green;
-    background: $panel;
-}
-
-#dialog_message {
-    width: 100%;
-    text-align: center;
-    padding: 2;
-}
-
-#dialog_buttons {
-    width: 100%;
-    align: center middle;
-    padding-top: 2;
-}
-
-#dialog_buttons Button {
-    margin: 1 2;
-}
