@@ -6,6 +6,7 @@ import onnxruntime as ort
 import pyaudio
 from unicodedata import normalize
 from RealtimeTTS.engines.base_engine import BaseEngine
+from pathlib import Path
 
 class SupertonicVoice:
     def __init__(self, name, path):
@@ -24,18 +25,24 @@ class SupertonicEngine(BaseEngine):
         self.model_name = "Supertonic"
         self.speed = speed
         self.steps = steps
-        self.model_dir = model_dir
+        self.model_dir = Path(model_dir) # Convert to Path object
         self.volume = volume # Store volume factor
         
         # 1. Load Configuration
-        cfg_path = os.path.join(model_dir, "tts.json")
-        if not os.path.exists(cfg_path):
-            raise FileNotFoundError(f"tts.json not found in {model_dir}")
+        cfg_path = self.model_dir / "tts.json"
+        if not cfg_path.exists(): # Use Path.exists()
+            raise FileNotFoundError(f"tts.json not found in {self.model_dir}")
         with open(cfg_path, "r") as f: 
             self.cfgs = json.load(f)
 
         # 2. Load Unicode Indexer
-        indexer_path = os.path.join(model_dir, "unicode_indexer.json")
+        indexer_path = self.model_dir / "unicode_indexer.json"
+        if not indexer_path.exists(): # Use Path.exists()
+            # If not found in model_dir, try in same dir as voice_style_path
+            indexer_path = Path(voice_style_path).parent / "unicode_indexer.json"
+            if not indexer_path.exists():
+                raise FileNotFoundError(f"unicode_indexer.json not found in {self.model_dir} or {Path(voice_style_path).parent}")
+
         with open(indexer_path, "r", encoding="utf-8") as f:
             self.indexer = json.load(f)
 
@@ -46,10 +53,10 @@ class SupertonicEngine(BaseEngine):
         
         self.models = {}
         for name in ["duration_predictor", "text_encoder", "vector_estimator", "vocoder"]:
-            path = os.path.join(model_dir, f"{name}.onnx")
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"Model {name}.onnx not found in {model_dir}")
-            self.models[name] = ort.InferenceSession(path, sess_options=opts, providers=providers)
+            path = self.model_dir / f"{name}.onnx" # Use Path / operator
+            if not path.exists(): # Use Path.exists()
+                raise FileNotFoundError(f"Model {name}.onnx not found in {self.model_dir}")
+            self.models[name] = ort.InferenceSession(str(path), sess_options=opts, providers=providers) # Convert back to str for ONNX
 
         # 4. Load Initial Voice
         self.set_voice(voice_style_path)
@@ -59,6 +66,7 @@ class SupertonicEngine(BaseEngine):
         self.base_chunk_size = self.cfgs["ae"]["base_chunk_size"]
         self.chunk_compress_factor = self.cfgs["ttl"]["chunk_compress_factor"]
         self.ldim = self.cfgs["ttl"]["latent_dim"]
+
 
     def post_init(self):
         self.engine_name = "supertonic"
@@ -72,29 +80,26 @@ class SupertonicEngine(BaseEngine):
         voices = []
         # Assuming voice_styles is parallel to the onnx dir based on user structure
         # assets/supertonic/onnx -> assets/supertonic/voice_styles
-        style_dir = os.path.abspath(os.path.join(self.model_dir, "..", "voice_styles"))
+        style_dir = self.model_dir.parent / "voice_styles" # Use Path / operator and .parent
         
-        if os.path.exists(style_dir):
-            for f in os.listdir(style_dir):
+        if style_dir.exists(): # Use Path.exists()
+            for f in os.listdir(style_dir): # os.listdir takes string path
                 if f.endswith(".json"):
-                    voices.append(SupertonicVoice(f.replace(".json", ""), os.path.join(style_dir, f)))
+                    voices.append(SupertonicVoice(f.replace(".json", ""), str(style_dir / f))) # Convert back to str for SupertonicVoice
         return voices
 
     def set_voice(self, voice):
         """Sets the voice style tensors"""
-        path = ""
-        if isinstance(voice, SupertonicVoice):
-            path = voice.path
-        elif isinstance(voice, str):
-            path = voice
-            # If just a name is passed, try to find it
-            if not os.path.exists(path):
-                style_dir = os.path.abspath(os.path.join(self.model_dir, "..", "voice_styles"))
-                possible_path = os.path.join(style_dir, f"{voice}.json")
-                if os.path.exists(possible_path):
-                    path = possible_path
+        path = Path(voice) if isinstance(voice, str) else voice.path # Convert to Path if string
 
-        if not os.path.exists(path):
+        if not path.exists(): # Use Path.exists()
+            # If just a name is passed, try to find it
+            style_dir = self.model_dir.parent / "voice_styles" # Use Path / operator and .parent
+            possible_path = style_dir / f"{voice}.json" # Use Path / operator
+            if possible_path.exists(): # Use Path.exists()
+                path = possible_path
+
+        if not path.exists():
             print(f"Warning: Voice file {path} not found.")
             return
 

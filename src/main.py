@@ -2,12 +2,13 @@ import os
 import sys
 import warnings
 import time
+from pathlib import Path
 
 # --- 1. SETUP PATHS ---
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, ".."))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+current_dir = Path(__file__).parent
+project_root = current_dir.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 # --- 2. SUPPRESS NOISE ---
 warnings.filterwarnings("ignore")
