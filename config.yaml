@@ -13,9 +13,17 @@ tts:
   volume: 2.2
 
 stt:
-  model: "base"
-  realtime_model: "base"
+  model: "tiny.en"
+  realtime_model: "tiny.en"
   language: "en"
+
+wakewords:
+  backend: "oww"
+  model_paths:
+    - "assets/wakewords/onnx/kee_vah.onnx"
+    - "assets/wakewords/onnx/yo_bitch.onnx"
+    - "assets/wakewords/onnx/hey_kee_vuh.onnx"
+  sensitivity: 0.35
 
 llm:
   model: "gemma3:1b"

@@ -117,17 +117,18 @@ async def run(self):
 #### Phase 1: The Core & Audio Engine (Day 1-2)
 *   **Goal:** Replicate your current script but in the modular structure using `RealtimeTTS` architecture.
 *   **Tasks:**
-    *   Set up `uv` project structure.
-    *   Create `src/audio/tts_engine.py`: Wrap the Supertonic ONNX code into a class that accepts a stream of text and yields PCM audio bytes.
-    *   Integrate `RealtimeSTT` in `src/audio/stt_service.py`.
-    *   Get basic "Echo" functionality working (Speak -> STT -> TTS).
+    *   [x] Set up `uv` project structure.
+    *   [x] Create `src/audio/tts_engine.py`: Wrap the Supertonic ONNX code into a class that accepts a stream of text and yields PCM audio bytes.
+    *   [x] Implement Custom Wakeword Engine (`src/audio/wakeword.py`) to decouple from RealtimeSTT's internal limitation.
+    *   [x] Integrate `RealtimeSTT` (moved to `src/audio/stt_service.py`).
+    *   [x] Get basic "Echo" functionality working (Speak -> STT -> TTS).
 
 #### Phase 2: The Async Brain (Day 3)
 *   **Goal:** Connect the LLM asynchronously.
 *   **Tasks:**
-    *   Implement `src/llm/client.py` using `ollama` (or an async wrapper like `aiohttp` against Ollama API).
-    *   Create the "sentence buffer" pipeline (LLM stream -> Buffer -> TTS Engine).
-    *   Verify latency is under 500ms.
+    *   [x] Implement `src/llm/client.py` using `ollama` (or an async wrapper like `aiohttp` against Ollama API).
+    *   [x] Create the "sentence buffer" pipeline (LLM stream -> Buffer -> TTS Engine).
+    *   [ ] Verify latency is under 500ms.
 
 #### Phase 3: MCP & Tool Registry (Day 4-5)
 *   **Goal:** Give Kiva hands.

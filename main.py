@@ -53,7 +53,7 @@ class UnicodeProcessor:
             text = text.replace(k, v)
 
         # Remove combining diacritics
-        text = re.sub(r"[\u0302\u0303\u0304\u0305\u0306\u0307\u0308\u030A\u030B\u030C\u0327\u0328\u0329\u032A\u032B\u032C\u032D\u032E\u032F]", "", text)
+        text = re.sub(r"[\u0302\u0303\u0304\u0305\u0306\u0307\u0308\u030a\u030b\u030c\u0327\u0328\u0329\u032a\u032b\u032c\u032d\u032e\u032f]", "", text)
         text = re.sub(r"[♥☆♡©\\]", "", text)
 
         expr_replacements = {"@": " at ", "e.g.,": "for example, ", "i.e.,": "that is, "}
@@ -307,9 +307,9 @@ if __name__ == '__main__':
                         help='Ollama model to use for LLM responses. Default is gemma3:1b.')
 
     # Supertonic TTS Arguments
-    parser.add_argument('--onnx-dir', type=str, default='assets/onnx',
+    parser.add_argument('--onnx-dir', type=str, default='assets/supertonic/onnx',
                         help='Path to the directory containing ONNX model files and configs.')
-    parser.add_argument('--voice-style', type=str, default='assets/voice_styles/F1.json',
+    parser.add_argument('--voice-style', type=str, default='assets/supertonic/voice_styles/F1.json',
                         help='Path to the voice style JSON file.')
     parser.add_argument('--speed', type=float, default=1.05,
                         help='Speech speed (higher = faster). Default 1.05.')
@@ -357,7 +357,7 @@ if __name__ == '__main__':
     - Quick with jokes and puns when appropriate
 
     Keep responses conversational and natural. Short, clear, and full of helpful energy. 
-    Use contractions, be casual, and keep things light!
+    Use contractions, be casual, and keep things light! 
     
     IMPORTANT: 
     - You're a helpful assistant, NOT a romantic interest
@@ -441,9 +441,15 @@ if __name__ == '__main__':
         global displayed_text, rich_text_stored
         rich_text = Text()
         
-        display_sentences = [s for s in full_sentences]
+        # Only display the last 10 sentences to prevent overflow (simulated auto-scroll)
+        display_sentences = full_sentences[-10:]
+        
+        # Calculate the starting index for correct role assignment
+        start_index = len(full_sentences) - len(display_sentences)
+        
         for i, sentence in enumerate(display_sentences):
-            if i % 2 == 0:
+            # Determine role based on the absolute index in the full conversation
+            if (start_index + i) % 2 == 0:
                 rich_text += Text("You: ", style="bold cyan") + Text(sentence, style="cyan") + Text("\n\n")
             else:
                 rich_text += Text("Kiva: ", style="bold magenta") + Text(sentence, style="magenta") + Text("\n\n")
