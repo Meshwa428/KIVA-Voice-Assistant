@@ -28,9 +28,8 @@ from src.audio.stt_service import STTService
 def main():
     # Initialize TUI
     tui = KivaTUI()
-    tui.start() # Start Live display immediately to capture startup logs in UI if we wanted
+    tui.start() 
     
-    # Use a temporary status update since we can't use console.status context manager easily with Live active
     tui.set_status("System initializing...")
 
     # --- Config Load ---
@@ -46,7 +45,9 @@ def main():
     try:
         llm_client = OllamaClient(
             model_name=cfg['llm']['model'],
-            system_prompt=cfg['llm']['system_prompt']
+            base_url=cfg['llm'].get('base_url', "http://localhost:11434/v1"),
+            system_prompt=cfg['llm']['system_prompt'],
+            llm_options=cfg['llm'].get('options', {})
         )
         tui.add_system_message(f"LLM Client Ready: {cfg['llm']['model']}")
     except Exception as e:
@@ -105,7 +106,6 @@ def main():
     tui.set_status("Loading RealtimeSTT (Whisper)...")
     
     def text_detected_callback(text):
-        # Only update if Kiva is not speaking
         if not speaking_event.is_set():
             tui.set_realtime_text(text)
             tui.set_status("Listening...")
@@ -124,6 +124,7 @@ def main():
 
     tui.set_status("Waiting for Wake Word...")
     tui.add_assistant_message("Hey! I'm Kiva. I'm ready to chat!")
+    tui.finalize_assistant_message()
 
     def process_text(text: str):
         text = text.strip()
@@ -134,31 +135,25 @@ def main():
         tui.set_status("Processing...")
         
         # 2. Streaming Pipeline
-        # speaking_event managed by TTS callbacks
-        
-        # Create an empty message bubble for the assistant's response
         tui.add_assistant_message("") 
         
         def processing_llm_stream(llm_output_stream):
             """
-            Processes the LLM output stream:
-            - Updates the TUI with raw content (including markdown).
-            - Filters out code blocks (```...```) and asterisks (*) for the TTS engine.
+            Processes the LLM output stream and updates TUI in real-time.
             """
             in_code_block = False
             buffer = "" 
             
             for raw_chunk in llm_output_stream:
-                # 1. Update TUI with RAW content immediately
+                # Update TUI live as chunks arrive
                 tui.update_last_assistant_message(raw_chunk)
                 
-                # 2. Process for TTS
+                # Process for TTS (strip code blocks/formatting)
                 buffer += raw_chunk
                 
                 while True:
                     if not in_code_block:
                         code_start_idx = buffer.find("```")
-                        
                         if code_start_idx != -1:
                             to_yield = buffer[:code_start_idx].replace("*", "")
                             if to_yield: yield to_yield
@@ -171,7 +166,6 @@ def main():
                             break 
                     else: 
                         code_end_idx = buffer.find("```")
-                        
                         if code_end_idx != -1:
                             in_code_block = False
                             buffer = buffer[code_end_idx + 3:] 
@@ -182,6 +176,11 @@ def main():
             if buffer and not in_code_block:
                 to_yield = buffer.replace("*", "")
                 if to_yield: yield to_yield
+            
+            # --- FIX IS HERE ---
+            # We explicitly finalize the message only after the generator 
+            # has finished looping through all the text.
+            tui.finalize_assistant_message()
 
         try:
             # Get generator (LLM output stream)
@@ -197,36 +196,29 @@ def main():
                     buffer_threshold_seconds=1.0, 
                     log_synthesized_text=False
                 )
+            
+            # REMOVED: tui.finalize_assistant_message() from here
+            # because it was running too early.
                 
         except Exception as e:
             tui.add_system_message(f"LLM Error: {e}")
 
     try:
         while True:
-            # Wait if audio is playing or we are conceptually "speaking"
             if speaking_event.is_set() or tts_stream.is_playing():
                 time.sleep(0.1)
             else:
                 tui.set_status("Waiting for Wake Word...")
                 
-                # 1. Wait for Wakeword
                 wakeword_detected = False
                 def on_wake():
                     nonlocal wakeword_detected
                     wakeword_detected = True
                 
-                # This blocks until wakeword detected
-                # We need to run this in a way that doesn't block the TUI live update?
-                # Actually, TUI.Live runs in a separate thread by default in rich? No, it updates on .update().
-                # If we block here, TUI won't refresh if refresh_per_second is driven by main thread?
-                # Rich Live uses a thread for refreshing if refresh_per_second is set.
-                # So blocking is fine for the display, but we must ensure we don't block forever if we want to handle exit.
                 wakeword_detector.start(on_detected=on_wake)
                 
                 if wakeword_detected:
                     tui.set_status("Wake Word Detected! Listening...")
-                    
-                    # 2. Listen for Command (VAD controlled)
                     user_text = stt_service.get_text()
                     if user_text:
                         process_text(user_text)
@@ -237,7 +229,8 @@ def main():
         try:
             wakeword_detector.stop()
             wakeword_detector.cleanup()
-            stt_service.shutdown()
+            with ignore_stderr():
+                stt_service.shutdown()
             tts_stream.stop()
         except:
             pass

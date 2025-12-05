@@ -32,6 +32,7 @@ class WakewordDetector:
         For this synchronous implementation, it blocks until wakeword is detected.
         """
         self.running = True
+        self.model.reset()
         
         # Open stream
         self.stream = self.p.open(
@@ -43,7 +44,6 @@ class WakewordDetector:
             input_device_index=self.device_index
         )
         
-        print(f"Listening for wakewords: {self.model_paths}")
         
         try:
             while self.running:

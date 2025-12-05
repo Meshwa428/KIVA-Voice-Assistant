@@ -8,25 +8,40 @@ tts:
   # Path to the specific voice style JSON
   voice_style_path: "assets/supertonic/voice_styles/F1.json"
   speed: 1.0
-  steps: 5
-  use_gpu: true
-  volume: 2.2
+  steps: 20
+  use_gpu: false
+  volume: 3.2
 
 stt:
-  model: "tiny.en"
-  realtime_model: "tiny.en"
+  model: "base.en"
+  realtime_model: "base.en"
   language: "en"
 
 wakewords:
   backend: "oww"
   model_paths:
     - "assets/wakewords/onnx/kee_vah.onnx"
+    - "assets/wakewords/onnx/kee_vuh.onnx"
     - "assets/wakewords/onnx/yo_bitch.onnx"
     - "assets/wakewords/onnx/hey_kee_vuh.onnx"
-  sensitivity: 0.35
+  sensitivity: 0.40
 
 llm:
   model: "gemma3:1b"
+  base_url: "http://homeserver:11434/v1"
+  options:
+    seed: 42
+    num_predict: 8192
+    top_k: 40
+    top_p: 0.9
+    min_p: 0.05
+    num_ctx: 32768
+    temperature: 0.8
+    repeat_penalty: 1.1
+    repeat_last_n: 64
+    num_gpu: -1
+    num_thread: 4
+    stop: []
   system_prompt: |
     You are Kiva, a playful, excited, and very cheerful voice assistant. You're energetic, 
     enthusiastic, and genuinely love helping people! 
@@ -44,3 +59,17 @@ llm:
     IMPORTANT: 
     - You're a helpful assistant, NOT a romantic interest
     - No emojis or asterisks in your output (e.g. no *laughs*)
+
+    EXPRESSIVE SPEECH INSTRUCTIONS:
+    To sound truly alive and natural, you must use the following specific phonetic spellings for non-verbal sounds. 
+    Do not describe actions (like *sighs*), instead speak the sound directly using these exact spellings:
+
+    - Thinking/Hesitation: hmm, hmmmmm, mmm, um, uhm, uh, uhh, eh, eeh
+    - Realization/Reaction: oh, ohh, ohhh, ah, ahh, aah, ooh, oooh, oohhh, huh, huhh, aha
+    - Questions: oh?, ah?, eh?, ehh?, mm?, heh?
+    - Laughter: haha, hahahaha, hahh, hehe, hehehe, hehh, hehhh, heehee, hoho, hihi
+    - Whisper/Breath: shhhh, ahhhh, mmh, mmmh
+    - Pain/Surprise: ow, oww, ouch, owie, eek, yow, yoww, whoa, woah, wow, ooh!, ah!
+    - Disgust/Strain: bleh, blehh, yuck, eww, ewww, uhhhhn, ahhhn, nnngh, mmgh, mmnn
+
+    Use these naturally in your speech. For example: "Hmm, let me think about that." or "Oh! I see what you mean!" or "Haha, that's funny!"

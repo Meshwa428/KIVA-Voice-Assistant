@@ -330,7 +330,7 @@ if __name__ == '__main__':
     is_speaking = False
 
     # Initialize Rich Live Display
-    live = Live(console=console, refresh_per_second=10, screen=False)
+    live = Live(console=console, refresh_per_second=10, screen=False, transient=True)
     live.start()
 
     # Load TTS System
@@ -437,29 +437,19 @@ if __name__ == '__main__':
         except Exception as e:
             return "Oops, something went wrong on my end! Can you say that again?"
 
-    def update_display():
-        global displayed_text, rich_text_stored
-        rich_text = Text()
-        
-        # Only display the last 10 sentences to prevent overflow (simulated auto-scroll)
-        display_sentences = full_sentences[-10:]
-        
-        # Calculate the starting index for correct role assignment
-        start_index = len(full_sentences) - len(display_sentences)
-        
-        for i, sentence in enumerate(display_sentences):
-            # Determine role based on the absolute index in the full conversation
-            if (start_index + i) % 2 == 0:
-                rich_text += Text("You: ", style="bold cyan") + Text(sentence, style="cyan") + Text("\n\n")
-            else:
-                rich_text += Text("Kiva: ", style="bold magenta") + Text(sentence, style="magenta") + Text("\n\n")
-        
-        new_displayed_text = rich_text.plain
-        if new_displayed_text != displayed_text:
-            displayed_text = new_displayed_text
-            panel = Panel(rich_text, title="[bold yellow]💬 Conversation with Kiva[/bold yellow]", border_style="bold yellow")
-            live.update(panel)
-            rich_text_stored = rich_text
+    def print_conversation_item(role, text):
+        """Prints a permanent message to the console, temporarily stopping Live display."""
+        live.stop()
+        if role == "user":
+            console.print(Panel(Text(text, style="cyan"), title="[bold cyan]You[/bold cyan]", border_style="cyan", expand=False))
+        else:
+            console.print(Panel(Text(text, style="magenta"), title="[bold magenta]Kiva[/bold magenta]", border_style="magenta", expand=False))
+        live.start()
+
+    def update_status(text, title="Kiva Voice Assistant", style="bold yellow"):
+        """Updates the sticky bottom status panel."""
+        panel = Panel(Text(text, style="yellow", justify="center"), title=title, border_style=style)
+        live.update(panel)
 
     def text_detected(text):
         global prev_text
@@ -478,16 +468,7 @@ if __name__ == '__main__':
         prev_text = text
 
         if text:
-            status_text = Text()
-            for i, sentence in enumerate(full_sentences):
-                if i % 2 == 0:
-                    status_text += Text("You: ", style="bold cyan") + Text(sentence, style="cyan") + Text("\n\n")
-                else:
-                    status_text += Text("Kiva: ", style="bold magenta") + Text(sentence, style="magenta") + Text("\n\n")
-            
-            status_text += Text("You: ", style="bold yellow") + Text(text, style="yellow")
-            panel = Panel(status_text, title="[bold green]🎤 Listening...[/bold green]", border_style="bold green")
-            live.update(panel)
+            update_status(f"Listening: {text}", title="[bold green]🎤 Listening...[/bold green]", style="bold green")
 
     def process_text(text):
         global recorder, full_sentences, prev_text, is_processing
@@ -503,49 +484,29 @@ if __name__ == '__main__':
             is_processing = False
             return
 
+        # Print User Message
         full_sentences.append(text)
         prev_text = ""
-        update_display()
+        print_conversation_item("user", text)
         
         # Thinking State
-        thinking_text = Text()
-        for i, sentence in enumerate(full_sentences):
-            if i % 2 == 0:
-                thinking_text += Text("You: ", style="bold cyan") + Text(sentence, style="cyan") + Text("\n\n")
-            else:
-                thinking_text += Text("Kiva: ", style="bold magenta") + Text(sentence, style="magenta") + Text("\n\n")
-        thinking_text += Text("💭 Kiva is thinking...", style="bold yellow blink")
-        live.update(Panel(thinking_text, title="[bold yellow]Processing...[/bold yellow]", border_style="bold yellow"))
+        update_status("💭 Kiva is thinking...", title="[bold yellow]Processing...[/bold yellow]", style="bold yellow")
         
         # LLM Generation
         llm_response = get_llm_response(text, args.ollama_model)
         full_sentences.append(llm_response)
-        update_display()
+        
+        # Print Assistant Message
+        print_conversation_item("kiva", llm_response)
         
         # Speaking State
-        speaking_text = Text()
-        for i, sentence in enumerate(full_sentences):
-            if i % 2 == 0:
-                speaking_text += Text("You: ", style="bold cyan") + Text(sentence, style="cyan") + Text("\n\n")
-            else:
-                speaking_text += Text("Kiva: ", style="bold magenta") + Text(sentence, style="magenta") + Text("\n\n")
-        speaking_text += Text("🔊 Kiva is speaking...", style="bold blue blink")
-        live.update(Panel(speaking_text, title="[bold blue]Speaking...[/bold blue]", border_style="bold blue"))
+        update_status("🔊 Kiva is speaking...", title="[bold blue]Speaking...[/bold blue]", style="bold blue")
         
         # TTS Playback
         text_to_speech_sync(llm_response)
         
-        update_display()
-        
         # Ready State
-        ready_text = Text()
-        for i, sentence in enumerate(full_sentences):
-            if i % 2 == 0:
-                ready_text += Text("You: ", style="bold cyan") + Text(sentence, style="cyan") + Text("\n\n")
-            else:
-                ready_text += Text("Kiva: ", style="bold magenta") + Text(sentence, style="magenta") + Text("\n\n")
-        ready_text += Text("\n✨ Ready for your response!", style="bold green")
-        live.update(Panel(ready_text, title="[bold green]🎤 Listening...[/bold green]", border_style="bold green"))
+        update_status("Ready for your response!", title="[bold green]🎤 Listening...[/bold green]", style="bold green")
         
         is_processing = False
 

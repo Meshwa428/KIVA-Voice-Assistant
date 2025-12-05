@@ -23,6 +23,8 @@ class STTService:
             silero_sensitivity=silero_sensitivity,
             post_speech_silence_duration=post_speech_silence_duration,
             on_realtime_transcription_update=on_realtime_transcription_update,
+            enable_realtime_transcription=True,
+            realtime_processing_pause=0.02,
             no_log_file=True
         )
 
